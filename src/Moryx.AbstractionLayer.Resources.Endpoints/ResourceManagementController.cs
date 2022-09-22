@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -41,6 +42,7 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status417ExpectationFailed)]
         [Route("types")]
+        [Authorize(Policy = "CanViewTypeTree")]
         public ActionResult<ResourceTypeModel> GetTypeTree()
         {
             var converter = new ResourceToModelConverter(_resourceTypeTree, _serialization);

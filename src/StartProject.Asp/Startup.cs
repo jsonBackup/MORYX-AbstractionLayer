@@ -1,12 +1,17 @@
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.Net.Http.Headers;
 using Moryx;
 using Moryx.AbstractionLayer.Products.Endpoints;
 using Moryx.Asp.Integration;
-using System.Text.Json.Serialization;
 
 namespace StartProject.Asp
 {
@@ -29,7 +34,7 @@ namespace StartProject.Asp
             services.AddCors(options =>
             {
                 options.AddPolicy("CorsPolicy", builder => builder
-                .WithOrigins("http://localhost:4200") // Angular app url for testing purposes
+                .WithOrigins("http://localhost:4200", "http://localhost:4210") // Angular app url for testing purposes
                 .AllowAnyMethod()
                 .AllowAnyHeader()
                 .AllowCredentials());
@@ -42,6 +47,33 @@ namespace StartProject.Asp
             {
                 c.CustomOperationIds(api => ((ControllerActionDescriptor)api.ActionDescriptor).MethodInfo.Name);
             });
+
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+             {
+                 options.TokenValidationParameters = new TokenValidationParameters
+                 {
+                     ValidateIssuerSigningKey = true,
+                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII
+                         .GetBytes("veryVerySuperSecretKey")),
+                     ValidIssuer = "http://localhost:5001",
+                     ValidAudience = "http://localhost:5001",
+                     ValidateIssuer = false,
+                     ValidateAudience = false
+                 };
+                 options.Events = new JwtBearerEvents
+                 {
+                     OnMessageReceived = context =>
+                     {
+                         context.Token = context.Request.Cookies["user_token"];
+                         return Task.CompletedTask;
+                     }
+                 };
+             });
+
+            services.AddAuthorization(options =>
+                options.AddPolicy("CanViewTypeTree",
+                policy => policy.RequireClaim("Permission", "Moryx.Resources.CanViewTypeTree")));
         }
 
         // Configure() is used to specify how the app responds to HTTP requests. The request pipeline is configured
@@ -61,12 +93,16 @@ namespace StartProject.Asp
             app.UseHttpsRedirection();
 
             // Add MORYX UIs
-           
+
             app.UseRouting();
             if (env.IsDevelopment())
                 app.UseCors("CorsPolicy");
+            app.UseAuthentication();
             app.UseAuthorization();
-                       
+
+            // Add MORYX SignalR hubs
+            app.UseMoryxProductManagementHub();
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
