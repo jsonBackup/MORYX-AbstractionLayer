@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -8,7 +13,6 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.Net.Http.Headers;
 using Moryx;
 using Moryx.AbstractionLayer.Products.Endpoints;
 using Moryx.Asp.Integration;
@@ -18,6 +22,7 @@ namespace StartProject.Asp
     public class Startup
     {
         private readonly IApplicationRuntime _moryxRuntime;
+        private string _baseAddress = "https://localhost:5001";
 
         public Startup(IApplicationRuntime moryxRuntime)
         {
@@ -56,8 +61,8 @@ namespace StartProject.Asp
                      ValidateIssuerSigningKey = true,
                      IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII
                          .GetBytes("veryVerySuperSecretKey")),
-                     ValidIssuer = "http://localhost:5001",
-                     ValidAudience = "http://localhost:5001",
+                     ValidIssuer = _baseAddress,
+                     ValidAudience = _baseAddress,
                      ValidateIssuer = false,
                      ValidateAudience = false
                  };
@@ -98,6 +103,21 @@ namespace StartProject.Asp
             if (env.IsDevelopment())
                 app.UseCors("CorsPolicy");
             app.UseAuthentication();
+            app.Use(async (context, next) =>
+            {
+                if (context.User != null && context.User.Identity.IsAuthenticated)
+                {
+                    var permissions = await GetPermissions(context.Request.Cookies["user_token"]);
+
+                    var appIdentity = new ClaimsIdentity();
+                    foreach (var perm in permissions)
+                    {
+                        appIdentity.AddClaim(new Claim("permission", perm));
+                    }
+                    context.User.AddIdentity(appIdentity);
+                }
+                await next();
+            });
             app.UseAuthorization();
 
             // Add MORYX SignalR hubs
@@ -107,6 +127,21 @@ namespace StartProject.Asp
             {
                 endpoints.MapControllers();
             });
+        }
+
+        private async Task<IEnumerable<string>> GetPermissions(string cookie_value)
+        {
+            var baseAddress = new Uri(_baseAddress);
+            var cookieContainer = new CookieContainer();
+            using (var handler = new HttpClientHandler() { CookieContainer = cookieContainer })
+            using (var client = new HttpClient(handler) { BaseAddress = baseAddress })
+            {
+                cookieContainer.Add(baseAddress, new Cookie("user_token", cookie_value));
+                var result = await client.GetAsync($"/api/auth/userPermissions");
+                if (!result.IsSuccessStatusCode)
+                    return null;
+                return result.Content.ReadAsAsync<IEnumerable<string>>().Result;
+            }
         }
     }
 }
