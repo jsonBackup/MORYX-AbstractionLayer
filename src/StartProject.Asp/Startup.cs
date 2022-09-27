@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Moryx;
 using Moryx.AbstractionLayer.Products.Endpoints;
+using Moryx.AbstractionLayer.Resources.Endpoints;
 using Moryx.Asp.Integration;
 
 namespace StartProject.Asp
@@ -23,6 +25,7 @@ namespace StartProject.Asp
     {
         private readonly IApplicationRuntime _moryxRuntime;
         private string _baseAddress = "https://localhost:5001";
+        private bool AUTHORIZATION_ENABLED = true;
 
         public Startup(IApplicationRuntime moryxRuntime)
         {
@@ -75,10 +78,8 @@ namespace StartProject.Asp
                      }
                  };
              });
-
-            services.AddAuthorization(options =>
-                options.AddPolicy("CanViewTypeTree",
-                policy => policy.RequireClaim("Permission", "Moryx.Resources.CanViewTypeTree")));
+            services.AddAuthorization();
+            services.AddSingleton<IAuthorizationPolicyProvider, ResourcesAuthorizationPolicyProvider>();
         }
 
         // Configure() is used to specify how the app responds to HTTP requests. The request pipeline is configured
@@ -125,7 +126,9 @@ namespace StartProject.Asp
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapControllers();
+                var conventionBuilder = endpoints.MapControllers();
+                if (!AUTHORIZATION_ENABLED)
+                    conventionBuilder.WithMetadata(new AllowAnonymousAttribute());
             });
         }
 

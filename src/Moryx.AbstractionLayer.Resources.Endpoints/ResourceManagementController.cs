@@ -42,7 +42,7 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status417ExpectationFailed)]
         [Route("types")]
-        [Authorize(Policy = "CanViewTypeTree")]
+        [Authorize(Policy = Permissions.CanViewTypeTree)]
         public ActionResult<ResourceTypeModel> GetTypeTree()
         {
             var converter = new ResourceToModelConverter(_resourceTypeTree, _serialization);
@@ -153,11 +153,12 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
             if (_resourceModification.GetAllResources<IResource>(r => r.Id == model.Id).Count() > 0)
                 return Conflict($"The resource '{model.Id}' already exists.");
 
-            var id = _resourceModification.Create(_resourceTypeTree[model.Type].ResourceType, r => {
+            var id = _resourceModification.Create(_resourceTypeTree[model.Type].ResourceType, r =>
+            {
                 var resourcesToSave = new HashSet<long>();
                 var resourceCache = new Dictionary<long, Resource>();
                 FromModel(model, resourcesToSave, resourceCache, r);
-                resourcesToSave.Skip(1).ForEach(id => _resourceModification.Modify(id, r => true ));
+                resourcesToSave.Skip(1).ForEach(id => _resourceModification.Modify(id, r => true));
             });
 
             return GetDetails(id);
@@ -293,7 +294,8 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
             if (_resourceModification.GetAllResources<IResource>(r=>r.Id == id) is null)
                 return NotFound(new MoryxExceptionResponse { Title = string.Format(Strings.ResourceNotFoundException_ById_Message, id) });
 
-            _resourceModification.Modify(id, r => {
+            _resourceModification.Modify(id, r =>
+            {
                 var resourcesToSave = new HashSet<long>();
                 var resourceCache = new Dictionary<long, Resource>();
                 FromModel(model, resourcesToSave, resourceCache, r);
