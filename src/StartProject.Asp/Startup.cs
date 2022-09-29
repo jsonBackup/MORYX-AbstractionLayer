@@ -1,19 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Http;
-using System.Security.Claims;
-using System.Text;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.IdentityModel.Tokens;
 using Moryx;
 using Moryx.AbstractionLayer.Products.Endpoints;
 using Moryx.AbstractionLayer.Resources.Endpoints;
@@ -23,13 +15,13 @@ namespace StartProject.Asp
 {
     public class Startup
     {
+        public IConfiguration Configuration { get; }
         private readonly IApplicationRuntime _moryxRuntime;
-        private string _baseAddress = "https://localhost:5001";
-        private bool AUTHORIZATION_ENABLED = true;
-
-        public Startup(IApplicationRuntime moryxRuntime)
+        private AuthSettings _authSettings;
+        public Startup(IApplicationRuntime moryxRuntime, IConfiguration configuration)
         {
             _moryxRuntime = moryxRuntime;
+            Configuration = configuration;
         }
 
         // ConfigureServices() is called by the host before the Configure() method and will configure the app's
@@ -56,28 +48,19 @@ namespace StartProject.Asp
                 c.CustomOperationIds(api => ((ControllerActionDescriptor)api.ActionDescriptor).MethodInfo.Name);
             });
 
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
-             {
-                 options.TokenValidationParameters = new TokenValidationParameters
-                 {
-                     ValidateIssuerSigningKey = true,
-                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII
-                         .GetBytes("veryVerySuperSecretKey")),
-                     ValidIssuer = _baseAddress,
-                     ValidAudience = _baseAddress,
-                     ValidateIssuer = false,
-                     ValidateAudience = false
-                 };
-                 options.Events = new JwtBearerEvents
-                 {
-                     OnMessageReceived = context =>
-                     {
-                         context.Token = context.Request.Cookies["user_token"];
-                         return Task.CompletedTask;
-                     }
-                 };
-             });
+            // Register AuthSettings
+            var authSection = Configuration.GetSection("Auth");
+            _authSettings = authSection.Get<AuthSettings>();
+            services.Configure<AuthSettings>(authSection);
+            services.AddSingleton(_authSettings);
+
+            services.AddAuthentication(options => options.DefaultScheme = "Moryx")
+                .AddScheme<MoryxAuthSchemeOptions, MoryxAuthHandler>("Moryx", options =>
+                {
+                    options.BaseAdress = _authSettings.BaseAddress;
+                    options.CookieName = _authSettings.CookieName;
+                    options.RequestUri = _authSettings.RequestUri;
+                });
             services.AddAuthorization();
             services.AddSingleton<IAuthorizationPolicyProvider, ResourcesAuthorizationPolicyProvider>();
         }
@@ -104,21 +87,6 @@ namespace StartProject.Asp
             if (env.IsDevelopment())
                 app.UseCors("CorsPolicy");
             app.UseAuthentication();
-            app.Use(async (context, next) =>
-            {
-                if (context.User != null && context.User.Identity.IsAuthenticated)
-                {
-                    var permissions = await GetPermissions(context.Request.Cookies["user_token"]);
-
-                    var appIdentity = new ClaimsIdentity();
-                    foreach (var perm in permissions)
-                    {
-                        appIdentity.AddClaim(new Claim("permission", perm));
-                    }
-                    context.User.AddIdentity(appIdentity);
-                }
-                await next();
-            });
             app.UseAuthorization();
 
             // Add MORYX SignalR hubs
@@ -127,24 +95,9 @@ namespace StartProject.Asp
             app.UseEndpoints(endpoints =>
             {
                 var conventionBuilder = endpoints.MapControllers();
-                if (!AUTHORIZATION_ENABLED)
+                if (!_authSettings.Enabled)
                     conventionBuilder.WithMetadata(new AllowAnonymousAttribute());
             });
-        }
-
-        private async Task<IEnumerable<string>> GetPermissions(string cookie_value)
-        {
-            var baseAddress = new Uri(_baseAddress);
-            var cookieContainer = new CookieContainer();
-            using (var handler = new HttpClientHandler() { CookieContainer = cookieContainer })
-            using (var client = new HttpClient(handler) { BaseAddress = baseAddress })
-            {
-                cookieContainer.Add(baseAddress, new Cookie("user_token", cookie_value));
-                var result = await client.GetAsync($"/api/auth/userPermissions");
-                if (!result.IsSuccessStatusCode)
-                    return null;
-                return result.Content.ReadAsAsync<IEnumerable<string>>().Result;
-            }
         }
     }
 }

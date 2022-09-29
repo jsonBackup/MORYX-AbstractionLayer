@@ -148,6 +148,7 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status417ExpectationFailed)]
+        [Authorize(Policy = Permissions.CanAddResource)]
         public ActionResult<ResourceModel> Save(ResourceModel model)
         {
             if (_resourceModification.GetAllResources<IResource>(r => r.Id == model.Id).Count() > 0)
