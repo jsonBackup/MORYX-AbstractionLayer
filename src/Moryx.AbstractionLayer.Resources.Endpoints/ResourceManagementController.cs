@@ -42,7 +42,7 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status417ExpectationFailed)]
         [Route("types")]
-        [Authorize(Policy = Permissions.CanViewTypeTree)]
+        [Authorize(Policy = ResourcePermissions.CanViewTypeTree)]
         public ActionResult<ResourceTypeModel> GetTypeTree()
         {
             var converter = new ResourceToModelConverter(_resourceTypeTree, _serialization);
@@ -148,7 +148,7 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status417ExpectationFailed)]
-        [Authorize(Policy = Permissions.CanAddResource)]
+        [Authorize(Policy = ResourcePermissions.CanAddResource)]
         public ActionResult<ResourceModel> Save(ResourceModel model)
         {
             if (_resourceModification.GetAllResources<IResource>(r => r.Id == model.Id).Count() > 0)

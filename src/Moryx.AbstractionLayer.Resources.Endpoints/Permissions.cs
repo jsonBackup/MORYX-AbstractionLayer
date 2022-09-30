@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Claims;
@@ -8,19 +7,19 @@ using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Moryx.AbstractionLayer.Resources.Endpoints
 {
-    public static class Permissions
+    public static class ResourcePermissions
     {
-        public const string CanEdit = "CanEdit";
-        public const string CanRemove = "CanRemove";
-        public const string CanShowAspectConfigurator = "CanShowAspectConfigurator";
-        public const string CanAddResource = "CanAddResource";
-        public const string CanViewTypeTree = "CanViewTypeTree";
+        private const string _prefix = "Moryx.Resources" + ".";
+        public const string CanEdit = _prefix + "CanEdit";
+        public const string CanRemove = _prefix + "CanRemove";
+        public const string CanShowAspectConfigurator = _prefix + "CanShowAspectConfigurator";
+        public const string CanAddResource = _prefix + "CanAddResource";
+        public const string CanViewTypeTree = _prefix + "CanViewTypeTree";
     }
 
     public class AuthSettings
@@ -31,16 +30,13 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
         public string CookieName { get; set; }
     }
 
-    public class ResourcesAuthorizationPolicyProvider : DefaultAuthorizationPolicyProvider
+    public class MoryxAuthorizationPolicyProvider : DefaultAuthorizationPolicyProvider
     {
         private readonly AuthorizationOptions _options;
-        private readonly IConfiguration _configuration;
-        private readonly string _bib = "Moryx.Resources";
 
-        public ResourcesAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options, IConfiguration configuration) : base(options)
+        public MoryxAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) : base(options)
         {
             _options = options.Value;
-            _configuration = configuration;
         }
 
         public override async Task<AuthorizationPolicy> GetPolicyAsync(string policyName)
@@ -48,23 +44,16 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
             // Check static policies first
             var policy = await base.GetPolicyAsync(policyName);
 
-            if (policy == null && PermissionDefined(policyName))
+            if (policy == null)
             {
                 policy = new AuthorizationPolicyBuilder()
-                    .RequireClaim("Permission", $"{_bib}.{policyName}")
+                    .RequireClaim("Permission", policyName)
                     .Build();
 
                 // Add policy to the AuthorizationOptions, so we don't have to re-create it each time
                 _options.AddPolicy(policyName, policy);
             }
             return policy;
-        }
-
-        private bool PermissionDefined(string policyName)
-        {
-            var fields = typeof(Permissions).GetFields();
-            var fieldsWithValue = fields.Where(p => p.GetValue(null).Equals(policyName));
-            return fieldsWithValue.Any();
         }
     }
 

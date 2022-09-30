@@ -62,7 +62,7 @@ namespace StartProject.Asp
                     options.RequestUri = _authSettings.RequestUri;
                 });
             services.AddAuthorization();
-            services.AddSingleton<IAuthorizationPolicyProvider, ResourcesAuthorizationPolicyProvider>();
+            services.AddSingleton<IAuthorizationPolicyProvider, MoryxAuthorizationPolicyProvider>();
         }
 
         // Configure() is used to specify how the app responds to HTTP requests. The request pipeline is configured
