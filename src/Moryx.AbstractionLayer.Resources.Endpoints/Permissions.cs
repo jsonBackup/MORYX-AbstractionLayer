@@ -14,7 +14,7 @@ namespace Moryx.AbstractionLayer.Resources.Endpoints
 {
     public static class ResourcePermissions
     {
-        private const string _prefix = "Moryx.Resources" + ".";
+        private const string _prefix = "Moryx.Resources.";
         public const string CanEdit = _prefix + "CanEdit";
         public const string CanRemove = _prefix + "CanRemove";
         public const string CanShowAspectConfigurator = _prefix + "CanShowAspectConfigurator";
