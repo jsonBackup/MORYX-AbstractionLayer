@@ -24,7 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Moryx.Asp.Extensions"/>
+    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.9" />
+    <PackageReference Include="Moryx.Asp.Extensions" />
   </ItemGroup>
 
   <ItemGroup>

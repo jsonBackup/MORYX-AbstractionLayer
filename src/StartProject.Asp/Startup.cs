@@ -7,7 +7,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moryx;
-using Moryx.AbstractionLayer.Products.Endpoints;
 using Moryx.AbstractionLayer.Resources.Endpoints;
 using Moryx.Asp.Integration;
 
@@ -88,9 +87,6 @@ namespace StartProject.Asp
                 app.UseCors("CorsPolicy");
             app.UseAuthentication();
             app.UseAuthorization();
-
-            // Add MORYX SignalR hubs
-            app.UseMoryxProductManagementHub();
 
             app.UseEndpoints(endpoints =>
             {
